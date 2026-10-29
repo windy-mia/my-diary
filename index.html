@@ -155,6 +155,8 @@ textarea.field {
 .lbbox p { margin: 0; font-size: .9rem; font-variant-numeric: tabular-nums; }
 .lbrow { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(20px, env(safe-area-inset-bottom, 0px)); z-index: 60; background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-size: .9rem; max-width: calc(100vw - 32px); text-align: center; }
+.bkrow { display: flex; gap: 8px; flex-wrap: wrap; }
+textarea.field.bkbox { font-family: var(--f-body); font-size: .8rem; line-height: 1.4; min-height: 6rem; background-image: none; padding: .65rem .9rem; margin-top: 10px; }
 @media (max-width: 420px) { .mnum { font-size: 4.6rem; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 /* 독립 실행용 기본 설정 */
@@ -352,6 +354,55 @@ img { max-width: 100%; }
     render();
   }
 
+  /* ---------- 백업과 복원 ---------- */
+  var CAN_DOWNLOAD = true;
+  var THUMB_RE = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/;
+  function exportJson() {
+    var list = Object.keys(days).sort().map(function (k) { return days[k]; });
+    return JSON.stringify({ app: 'watercolor-diary', v: 1, exportedAt: new Date().toISOString(), days: list });
+  }
+  function exportToBox() {
+    if (!Object.keys(days).length) { toast('내보낼 기록이 아직 없어요.'); return; }
+    var txt = exportJson(), ta = $('#bk');
+    if (ta) { ta.value = txt; ta.focus(); ta.select(); }
+    var done = function () { toast('기록을 복사했어요. 새 주소의 백업 칸에 붙여넣고 가져오기를 눌러 주세요.'); };
+    var manual = function () { toast('자동 복사가 막혀 있어요. 칸 안의 글을 전체 선택해서 직접 복사해 주세요.'); };
+    try { navigator.clipboard.writeText(txt).then(done, manual); } catch (e) { manual(); }
+  }
+  function saveBackupFile() {
+    if (!Object.keys(days).length) { toast('내보낼 기록이 아직 없어요.'); return; }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([exportJson()], { type: 'application/json' }));
+    a.download = 'watercolor-diary-' + keyOf(Date.now()) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    toast('백업 파일을 저장했어요.');
+  }
+  async function importJson(text) {
+    var data;
+    try { data = JSON.parse(String(text || '').trim()); } catch (e) { toast('백업 내용을 읽지 못했어요. 내보낸 글 전체가 붙여넣어졌는지 확인해 주세요.'); return; }
+    if (!data || data.app !== 'watercolor-diary' || !Array.isArray(data.days)) { toast('수채 다이어리 백업이 아니에요.'); return; }
+    var num = function (v) { v = Number(v); return isFinite(v) ? v : null; };
+    var nd = 0, np = 0;
+    for (var i = 0; i < data.days.length; i++) {
+      var d = data.days[i];
+      if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d.date)) continue;
+      var cur = days[d.date] || (days[d.date] = { date: d.date, memo: '', place: '', photos: [] });
+      if (!cur.memo && d.memo) cur.memo = String(d.memo).slice(0, 2000);
+      if (!cur.place && d.place) cur.place = String(d.place).slice(0, 60);
+      var ids = {}; cur.photos.forEach(function (p) { ids[p.id] = 1; });
+      (Array.isArray(d.photos) ? d.photos : []).forEach(function (p) {
+        if (!p || !p.id || ids[p.id] || typeof p.thumb !== 'string' || !THUMB_RE.test(p.thumb)) return;
+        cur.photos.push({ id: String(p.id), sig: p.sig ? String(p.sig) : '', t: num(p.t) || 0, lat: num(p.lat), lng: num(p.lng), place: p.place ? String(p.place).slice(0, 40) : '', thumb: p.thumb });
+        ids[p.id] = 1; np++;
+      });
+      cur.photos.sort(function (a, b) { return a.t - b.t; });
+      await putDay(cur); nd++;
+    }
+    toast(nd ? nd + '일치 기록과 사진 ' + np + '장을 가져왔어요.' : '가져올 기록이 없었어요.');
+    render();
+  }
+
   /* ---------- 화면 ---------- */
   function showMonth() {
     view = 'month'; fallbackKey = null;
@@ -389,6 +440,10 @@ img { max-width: 100%; }
       '<div><div class="dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div></div>' +
       '<div class="grid">' + cells.join('') + '</div>' +
       (rows.length ? '<section class="sec"><h2>이달의 기록</h2><div class="rows">' + rows.join('') + '</div></section>' : '') +
+      '<section class="sec"><h2>백업과 복원</h2><p class="hint" style="margin:0 0 10px">다른 주소나 기기로 기록을 옮기려면 이전 곳에서 내보내고, 새 곳에서 가져오세요.</p>' +
+      '<div class="bkrow"><button class="btn" data-act="bk-export">내보내기 (복사)</button>' + (CAN_DOWNLOAD ? '<button class="btn" data-act="bk-save">파일로 저장</button>' : '') + '<label class="btn" for="bkfile">백업 파일 가져오기</label><input class="sr" type="file" id="bkfile" accept=".json,application/json" tabindex="-1"></div>' +
+      '<label class="sr" for="bk">백업 내용</label><textarea class="field bkbox" id="bk" placeholder="내보낸 글을 여기에 붙여넣고 아래 버튼을 누르면 가져와요."></textarea>' +
+      '<p style="margin:8px 0 0"><button class="btn primary" data-act="bk-import">붙여넣은 내용 가져오기</button></p></section>' +
       '<p class="foot">기록은 이 브라우저 안에만 저장돼요. 같은 링크를 연 다른 사람에게는 각자 빈 다이어리가 열려요.</p>';
   }
 
@@ -460,6 +515,9 @@ img { max-width: 100%; }
     else if (a === 'today') goMonth(now.getFullYear(), now.getMonth());
     else if (a === 'lb') openLb(+t.getAttribute('data-i'));
     else if (a === 'closelb') closeLb();
+    else if (a === 'bk-export') exportToBox();
+    else if (a === 'bk-save') saveBackupFile();
+    else if (a === 'bk-import') importJson($('#bk') ? $('#bk').value : '');
     else if (a === 'del') {
       if (!lbArmed) { lbArmed = true; t.textContent = '정말 삭제할까요?'; return; }
       var d = days[lbKey]; d.photos.splice(lbI, 1); await putDay(d); closeLb(); toast('사진을 삭제했어요.'); showDay(lbKey);
@@ -490,6 +548,11 @@ img { max-width: 100%; }
   $('#pick').addEventListener('change', function (ev) {
     var files = Array.prototype.slice.call(ev.target.files); ev.target.value = '';
     if (files.length) addPhotos(files);
+  });
+  document.addEventListener('change', function (ev) {
+    if (ev.target.id !== 'bkfile') return;
+    var f = ev.target.files && ev.target.files[0]; ev.target.value = '';
+    if (f) f.text().then(importJson, function () { toast('파일을 읽지 못했어요.'); });
   });
   window.addEventListener('hashchange', render);
 
