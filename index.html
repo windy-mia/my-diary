@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>수채 다이어리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+<style>
+/* Layout: 한 달 달력 -> 날짜를 누르면 하루 페이지. 번진 물감 얼룩이 기록 있는 날을 표시한다. */
+:root {
+  --paper: #F7F3F1;
+  --card: #FCFAF9;
+  --ink: #2E3350;
+  --ink-soft: #62667F;
+  --line: #DED6D9;
+  --accent: #3F4F8C;
+  --sun: #B0483F;
+  --w0: #F0B2AA;
+  --w1: #A6CDBD;
+  --w2: #EFCF86;
+  --w3: #A8B8E2;
+  --f-display: 'Gowun Batang', 'Noto Serif KR', 'Nanum Myeongjo', serif;
+  --f-body: 'Gowun Dodum', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --f-hand: 'Nanum Pen Script', 'Gowun Dodum', cursive;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1C1E2B; --card: #252839; --ink: #ECE8EE; --ink-soft: #A5A8BF; --line: #373B53;
+    --accent: #A9B9F2; --sun: #EE9A92;
+    --w0: #A25E64; --w1: #4E7B6C; --w2: #9B8140; --w3: #5A6CA6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1C1E2B; --card: #252839; --ink: #ECE8EE; --ink-soft: #A5A8BF; --line: #373B53;
+  --accent: #A9B9F2; --sun: #EE9A92;
+  --w0: #A25E64; --w1: #4E7B6C; --w2: #9B8140; --w3: #5A6CA6;
+  color-scheme: dark;
+}
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.6;
+  padding-block: 20px 96px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.bg {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(46vmax 34vmax at 4% 0%, color-mix(in srgb, var(--w0) 34%, transparent), transparent 70%),
+    radial-gradient(40vmax 30vmax at 100% 18%, color-mix(in srgb, var(--w3) 30%, transparent), transparent 70%),
+    radial-gradient(50vmax 34vmax at 18% 108%, color-mix(in srgb, var(--w1) 30%, transparent), transparent 70%);
+}
+.wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.brand { font-family: var(--f-display); letter-spacing: .18em; font-size: .85rem; color: var(--ink-soft); }
+.hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; position: relative; }
+.mwrap { display: flex; align-items: baseline; gap: 10px; position: relative; }
+.mwrap::before {
+  content: ""; position: absolute; left: -18px; top: -6px; width: 150px; height: 110px;
+  background: var(--w2); opacity: .42; filter: url(#wc);
+  border-radius: 52% 48% 56% 44% / 50% 58% 42% 50%; z-index: -1;
+}
+.mnum { font-family: var(--f-display); font-weight: 700; font-size: 5.6rem; line-height: .95; color: var(--accent); }
+.mlabel { font-family: var(--f-display); font-size: 1.15rem; color: var(--ink); }
+.nav { display: flex; gap: 8px; align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: .55rem 1.05rem; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--card); color: var(--ink); cursor: pointer; text-decoration: none; min-height: 44px;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.round { padding: 0; width: 44px; font-size: 1.2rem; }
+.btn.primary { background: var(--accent); color: var(--paper); border-color: transparent; }
+.stats { margin: 0; color: var(--ink-soft); font-size: .95rem; }
+.stats b { color: var(--ink); font-family: var(--f-display); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.note { margin: 0; padding: 10px 14px; border-radius: 14px; background: color-mix(in srgb, var(--w2) 28%, var(--card)); font-size: .92rem; }
+
+.dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; text-align: center; font-size: .8rem; color: var(--ink-soft); }
+.dow span:first-child { color: var(--sun); }
+.dow span:last-child { color: var(--accent); }
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.day {
+  display: flex; flex-direction: column; gap: 3px; border: 0; background: transparent; padding: 0;
+  cursor: pointer; border-radius: 14px; min-width: 0; text-align: center;
+}
+.th { position: relative; aspect-ratio: 1 / 1; width: 100%; }
+.cap { display: flex; flex-direction: column; font-size: .66rem; line-height: 1.25; min-height: 2.5em; min-width: 0; }
+.cp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: keep-all; overflow-wrap: anywhere; }
+.cp.m { color: var(--ink-soft); }
+.cm { display: none; color: var(--ink-soft); }
+.rows { display: flex; flex-direction: column; gap: 8px; }
+.row { display: flex; gap: 12px; align-items: center; text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 16px; padding: 8px; cursor: pointer; min-width: 0; }
+.row:hover { border-color: var(--accent); }
+.rth { flex: none; width: 56px; height: 56px; border-radius: 14px; overflow: hidden; background: color-mix(in srgb, var(--c) 55%, var(--card)); }
+.rth img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rtx { display: flex; flex-direction: column; min-width: 0; font-size: .9rem; line-height: 1.4; }
+.rtx b { font-family: var(--f-display); font-weight: 700; }
+.rp { color: var(--accent); }
+.rm { color: var(--ink-soft); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.day:hover .num { color: var(--accent); }
+.blot { position: absolute; inset: 4% 2%; background: var(--c); opacity: .52; filter: url(#wc); border-radius: var(--r); }
+.day img { position: absolute; inset: 8%; width: 84%; height: 84%; object-fit: cover; border-radius: var(--r); z-index: 1; }
+.num { position: absolute; top: 5px; left: 7px; z-index: 3; font-size: .82rem; font-variant-numeric: tabular-nums; line-height: 1.5; min-width: 1.5em; text-align: center; }
+.day:not(.rec) .num { color: var(--ink-soft); }
+.day.has-photo .num { background: var(--card); border-radius: 999px; padding: 0 5px; }
+.day.today .num { background: var(--accent); color: var(--paper); border-radius: 999px; font-weight: 700; padding: 0 5px; }
+.cnt { position: absolute; right: 6%; bottom: 7%; z-index: 3; background: var(--card); border-radius: 999px; font-size: .66rem; padding: 0 6px; font-variant-numeric: tabular-nums; }
+@media (min-width: 560px) {
+  .num { font-size: .9rem; }
+  .cap { font-size: .76rem; min-height: 4.6em; }
+  .cp { -webkit-line-clamp: 1; font-weight: 700; }
+  .cm { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+}
+
+.foot { font-size: .85rem; color: var(--ink-soft); margin: 0; }
+
+/* day page */
+.dhead { display: flex; flex-direction: column; gap: 4px; position: relative; }
+.dhead h1 { margin: 0; font-family: var(--f-display); font-size: 2.1rem; line-height: 1.2; text-wrap: balance; }
+.dhead p { margin: 0; color: var(--ink-soft); }
+h2 { margin: 0 0 10px; font-family: var(--f-display); font-size: 1.15rem; }
+.sec { min-width: 0; }
+.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.ph { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.phb { border: 0; background: transparent; padding: 0; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pp { padding: .4rem .65rem; font-size: .85rem; border-radius: 10px; }
+.ph img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px 22px 18px 24px; box-shadow: 0 0 0 3px var(--card), 0 2px 10px color-mix(in srgb, var(--ink) 16%, transparent); }
+.ph span { font-size: .8rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.empty { padding: 18px; border-radius: 16px; border: 1.5px dashed var(--line); color: var(--ink-soft); display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.field { width: 100%; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 14px; padding: .65rem .9rem; font: inherit; min-width: 0; }
+textarea.field {
+  font-family: var(--f-hand); font-size: 1.55rem; line-height: 2rem; min-height: 10rem; resize: vertical; padding: .5rem 1rem;
+  background-image: repeating-linear-gradient(transparent 0 calc(2rem - 1px), color-mix(in srgb, var(--accent) 22%, transparent) calc(2rem - 1px) 2rem);
+  background-origin: content-box;
+}
+.status { font-size: .8rem; color: var(--ink-soft); margin: 6px 2px 0; min-height: 1.2em; }
+.route { width: 100%; height: auto; display: block; border-radius: 18px; background: color-mix(in srgb, var(--w1) 18%, var(--card)); }
+.pts { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pts li { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.pts a { color: var(--accent); }
+.hint { color: var(--ink-soft); font-size: .88rem; margin: 8px 0 0; }
+
+.lb { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--paper) 90%, transparent); }
+.lbbox { width: min(560px, 100%); max-height: 100%; background: var(--card); border-radius: 22px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 10px 40px color-mix(in srgb, var(--ink) 30%, transparent); }
+.lbbox img { width: 100%; max-height: 62vh; object-fit: contain; border-radius: 14px; }
+.lbbox p { margin: 0; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.lbrow { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(20px, env(safe-area-inset-bottom, 0px)); z-index: 60; background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 999px; font-size: .9rem; max-width: calc(100vw - 32px); text-align: center; }
+@media (max-width: 420px) { .mnum { font-size: 4.6rem; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* 독립 실행용 기본 설정 */
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="wc" x="-20%" y="-20%" width="140%" height="140%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G" result="d"/>
+    <feGaussianBlur in="d" stdDeviation="0.7"/>
+  </filter>
+</svg>
+<div class="bg"></div>
+<main class="wrap" id="app"></main>
+<input class="sr" type="file" id="pick" accept="image/*" multiple tabindex="-1">
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="사진 크게 보기"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  var keyOf = function (ms) { var d = new Date(ms); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+  var fmtTime = function (ms) { return new Date(ms).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }); };
+  var RADII = ['46% 54% 52% 48% / 55% 45% 55% 45%', '52% 48% 44% 56% / 48% 56% 44% 52%', '58% 42% 50% 50% / 46% 54% 46% 54%', '44% 56% 56% 44% / 52% 48% 52% 48%'];
+
+  var days = {}, db = null, persist = true;
+  var now = new Date(), cy = now.getFullYear(), cm = now.getMonth(), view = 'month', fallbackKey = null;
+  var todayKey = keyOf(Date.now());
+
+  /* ---------- 예시 기록 (내 기록이 하나도 없을 때만 보임) ---------- */
+  var sampleMap = {};
+  [[3, '동네 도서관', '비 오는 날, 창가 자리에서 두 시간 책을 읽었다.'],
+   [7, '성수동 카페거리', '친구랑 팝업 구경하고 케이크를 반반 나눠 먹었다.'],
+   [12, '한강공원', '해 지는 시간에 맞춰 자전거 한 바퀴.'],
+   [15, '남산 둘레길', '단풍이 막 들기 시작했다. 계단이 생각보다 많았다.'],
+   [19, '집', '하루 종일 청소. 책상 위치를 바꿨더니 새 방 같다.'],
+   [23, '시장 골목', '호떡 줄 서서 기다린 날. 따뜻한 종이컵이 좋았다.'],
+   [27, '회사 근처 공원', '점심 뒤 15분 산책. 낙엽 밟는 소리가 좋았다.']].forEach(function (s) {
+    var k = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(s[0]);
+    sampleMap[k] = { date: k, place: s[1], memo: s[2], photos: [] };
+  });
+  var usingSample = function () { return Object.keys(days).length === 0; };
+  var getDay = function (k) { return days[k] || (usingSample() ? sampleMap[k] : null) || null; };
+  function ensureDay(k) {
+    if (!days[k]) {
+      var s = usingSample() ? sampleMap[k] : null;
+      days[k] = { date: k, memo: s ? s.memo : '', place: s ? s.place : '', photos: [] };
+    }
+    return days[k];
+  }
+
+  /* ---------- 저장소 (이 브라우저 안에만 저장) ---------- */
+  function openDb() {
+    return new Promise(function (res, rej) {
+      try {
+        var r = indexedDB.open('watercolor-diary', 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore('days', { keyPath: 'date' }); };
+        r.onsuccess = function () { res(r.result); };
+        r.onerror = function () { rej(r.error); };
+      } catch (e) { rej(e); }
+    });
+  }
+  function loadAll() {
+    return new Promise(function (res, rej) {
+      var q = db.transaction('days').objectStore('days').getAll();
+      q.onsuccess = function () { res(q.result); };
+      q.onerror = function () { rej(q.error); };
+    });
+  }
+  function putDay(d) {
+    if (!db) return Promise.resolve(false);
+    return new Promise(function (res) {
+      try {
+        var t = db.transaction('days', 'readwrite');
+        t.objectStore('days').put(d);
+        t.oncomplete = function () { res(true); };
+        t.onerror = function () { persist = false; res(false); };
+        t.onabort = function () { persist = false; res(false); };
+      } catch (e) { persist = false; res(false); }
+    });
+  }
+
+  /* ---------- 사진 속 촬영 시각과 위치(EXIF) 읽기 ---------- */
+  function parseExif(buf) {
+    try {
+      var v = new DataView(buf);
+      if (v.getUint16(0) !== 0xFFD8) return {};
+      var off = 2;
+      while (off < v.byteLength - 4) {
+        var marker = v.getUint16(off);
+        if (marker === 0xFFE1) {
+          var len = v.getUint16(off + 2);
+          if (v.getUint32(off + 4) === 0x45786966) return readTiff(v, off + 10);
+          off += 2 + len;
+        } else if ((marker & 0xFF00) === 0xFF00) {
+          if (marker === 0xFFDA) break;
+          off += 2 + v.getUint16(off + 2);
+        } else break;
+      }
+    } catch (e) { /* 읽을 수 없으면 정보 없음으로 처리 */ }
+    return {};
+  }
+  function readTiff(v, s) {
+    var little = v.getUint16(s) === 0x4949;
+    var g16 = function (o) { return v.getUint16(o, little); };
+    var g32 = function (o) { return v.getUint32(o, little); };
+    var SZ = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1 };
+    function entries(ifd) {
+      var out = {}, n = g16(ifd);
+      for (var i = 0; i < n; i++) {
+        var e = ifd + 2 + i * 12, type = g16(e + 2), count = g32(e + 4);
+        var size = (SZ[type] || 1) * count;
+        out[g16(e)] = { type: type, count: count, pos: size > 4 ? s + g32(e + 8) : e + 8 };
+      }
+      return out;
+    }
+    var ascii = function (en) { var t = ''; for (var i = 0; i < en.count - 1; i++) t += String.fromCharCode(v.getUint8(en.pos + i)); return t; };
+    var rat = function (en) { var a = []; for (var i = 0; i < en.count; i++) { var den = g32(en.pos + i * 8 + 4); a.push(den ? g32(en.pos + i * 8) / den : 0); } return a; };
+    var res = {};
+    var ifd0 = entries(s + g32(s + 4));
+    if (ifd0[0x8769]) {
+      var ex = entries(s + g32(ifd0[0x8769].pos));
+      var ds = ex[0x9003] ? ascii(ex[0x9003]) : '';
+      var m = ds.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+      if (m) res.t = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime();
+    }
+    if (ifd0[0x8825]) {
+      var gp = entries(s + g32(ifd0[0x8825].pos));
+      if (gp[2] && gp[4]) {
+        var la = rat(gp[2]), lo = rat(gp[4]);
+        var lat = la[0] + la[1] / 60 + la[2] / 3600, lng = lo[0] + lo[1] / 60 + lo[2] / 3600;
+        if (gp[1] && v.getUint8(gp[1].pos) === 0x53) lat = -lat;
+        if (gp[3] && v.getUint8(gp[3].pos) === 0x57) lng = -lng;
+        if (isFinite(lat) && isFinite(lng) && (lat || lng)) { res.lat = lat; res.lng = lng; }
+      }
+    }
+    return res;
+  }
+  async function makeThumb(file) {
+    var bmp = await createImageBitmap(file);
+    var sc = Math.min(1, 900 / Math.max(bmp.width, bmp.height));
+    var c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    if (bmp.close) bmp.close();
+    return c.toDataURL('image/jpeg', 0.8);
+  }
+  var uid = function () { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2); };
+
+  var toastTimer;
+  function toast(msg, keep) {
+    var t = $('#toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer);
+    if (!keep) toastTimer = setTimeout(function () { t.hidden = true; }, 4200);
+  }
+
+  async function addPhotos(files) {
+    var added = 0, dup = 0, fail = 0, touched = {}, fb = fallbackKey, list = files.filter(function (f) { return /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name); });
+    for (var i = 0; i < list.length; i++) {
+      var f = list[i];
+      toast('사진 ' + (i + 1) + '/' + list.length + ' 읽는 중…', true);
+      try {
+        var ex = {};
+        if (/jpe?g/i.test(f.type) || /\.jpe?g$/i.test(f.name)) ex = parseExif(await f.slice(0, 262144).arrayBuffer());
+        var t = ex.t || f.lastModified, k = keyOf(t);
+        if (!ex.t && fb) { var p = fb.split('-'); t = new Date(+p[0], +p[1] - 1, +p[2], 12, 0, 0).getTime() + i * 1000; k = fb; }
+        var sig = f.name + '|' + f.size + '|' + f.lastModified;
+        var isDup = Object.keys(days).some(function (dk) { return days[dk].photos.some(function (ph) { return ph.sig === sig; }); });
+        if (isDup) { dup++; continue; }
+        var thumb = await makeThumb(f);
+        var d = ensureDay(k);
+        d.photos.push({ id: uid(), sig: sig, t: t, lat: ex.lat == null ? null : ex.lat, lng: ex.lng == null ? null : ex.lng, thumb: thumb });
+        d.photos.sort(function (a, b) { return a.t - b.t; });
+        touched[k] = true; added++;
+      } catch (e) { fail++; }
+    }
+    var ks = Object.keys(touched).sort();
+    for (var j = 0; j < ks.length; j++) await putDay(days[ks[j]]);
+    var msg = added ? '사진 ' + added + '장을 기록했어요.' : '새로 기록한 사진이 없어요.';
+    if (dup) msg += ' ' + dup + '장은 이미 있어요.';
+    if (fail) msg += ' ' + fail + '장은 읽지 못했어요(HEIC는 JPEG로 바꿔서 올려 주세요).';
+    if (added && !persist) msg += ' 이 브라우저에서는 저장이 유지되지 않을 수 있어요.';
+    if (view === 'month' && ks.length) {
+      var inMonth = ks.some(function (k) { return k.indexOf(cy + '-' + pad(cm + 1) + '-') === 0; });
+      if (!inMonth) { var l = ks[ks.length - 1].split('-'); cy = +l[0]; cm = +l[1] - 1; }
+    }
+    toast(msg);
+    render();
+  }
+
+  /* ---------- 화면 ---------- */
+  function showMonth() {
+    view = 'month'; fallbackKey = null;
+    var start = new Date(cy, cm, 1).getDay(), dim = new Date(cy, cm + 1, 0).getDate();
+    var src = usingSample() ? sampleMap : days, pre = cy + '-' + pad(cm + 1) + '-';
+    var rec = 0, pc = 0, places = {}, cells = [], rows = [];
+    for (var i = 0; i < start; i++) cells.push('<span></span>');
+    for (var d = 1; d <= dim; d++) {
+      var k = pre + pad(d), e = src[k], n = e && e.photos ? e.photos.length : 0, has = e && (e.memo || e.place || n);
+      if (has) { rec++; pc += n; if (e.place && e.place.trim()) places[e.place.trim()] = 1; (e.photos || []).forEach(function (x) { if (x.place && x.place.trim()) places[x.place.trim()] = 1; }); }
+      var h = d * 7 + cm * 3;
+      var pl = '', memo = '';
+      if (e) {
+        pl = (e.place && e.place.trim()) || '';
+        if (!pl) (e.photos || []).some(function (x) { if (x.place && x.place.trim()) { pl = x.place.trim(); return true; } return false; });
+        memo = (e.memo || '').trim();
+      }
+      var cap = pl ? '<span class="cp">' + esc(pl) + '</span>' + (memo ? '<span class="cm">' + esc(memo) + '</span>' : '')
+        : (memo ? '<span class="cp m">' + esc(memo) + '</span>' : '');
+      cells.push('<button class="day' + (has ? ' rec' : '') + (n ? ' has-photo' : '') + (k === todayKey ? ' today' : '') + '" data-act="open" data-key="' + k + '" style="--c:var(--w' + (h % 4) + ');--r:' + RADII[(h >> 2) % 4] + '" aria-label="' + (cm + 1) + '월 ' + d + '일' + (has ? ', 기록 있음' : '') + '">' +
+        '<span class="th">' + (has ? '<span class="blot"></span>' : '') +
+        (n ? '<img src="' + e.photos[0].thumb + '" alt="">' : '') +
+        '<span class="num">' + d + '</span>' +
+        (n > 1 ? '<span class="cnt">' + n + '</span>' : '') + '</span>' +
+        '<span class="cap">' + cap + '</span></button>');
+      if (has) rows.push('<button class="row" data-act="open" data-key="' + k + '" style="--c:var(--w' + (h % 4) + ')"><span class="rth">' + (n ? '<img src="' + e.photos[0].thumb + '" alt="">' : '') + '</span><span class="rtx"><b>' + (cm + 1) + '월 ' + d + '일 (' + new Date(cy, cm, d).toLocaleDateString('ko-KR', { weekday: 'short' }) + ')</b>' + (pl ? '<span class="rp">' + esc(pl) + '</span>' : '') + (memo ? '<span class="rm">' + esc(memo) + '</span>' : '') + '</span></button>');
+    }
+    $('#app').innerHTML =
+      '<div class="brand">수채 다이어리</div>' +
+      '<div class="hero"><div class="mwrap"><span class="mnum">' + (cm + 1) + '</span><span class="mlabel">월 · ' + cy + '</span></div>' +
+      '<div class="nav"><button class="btn round" data-act="prev" aria-label="이전 달">‹</button><button class="btn" data-act="today">오늘</button><button class="btn round" data-act="next" aria-label="다음 달">›</button></div></div>' +
+      '<p class="stats">기록한 날 <b>' + rec + '</b>일 · 사진 <b>' + pc + '</b>장 · 장소 <b>' + Object.keys(places).length + '</b>곳</p>' +
+      (usingSample() ? '<p class="note">지금 보이는 건 예시 기록이에요. 사진을 추가하거나 날짜를 눌러 메모를 남기면 내 기록으로 바뀌어요.</p>' : '') +
+      '<div><label class="btn primary" for="pick">사진으로 기록하기</label></div>' +
+      '<div><div class="dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div></div>' +
+      '<div class="grid">' + cells.join('') + '</div>' +
+      (rows.length ? '<section class="sec"><h2>이달의 기록</h2><div class="rows">' + rows.join('') + '</div></section>' : '') +
+      '<p class="foot">기록은 이 브라우저 안에만 저장돼요. 같은 링크를 연 다른 사람에게는 각자 빈 다이어리가 열려요.</p>';
+  }
+
+  function routeSvg(pts) {
+    var W = 320, H = 170, P = 26, lats = pts.map(function (p) { return p.lat; }), lngs = pts.map(function (p) { return p.lng; });
+    var minLa = Math.min.apply(0, lats), maxLa = Math.max.apply(0, lats), minLo = Math.min.apply(0, lngs), maxLo = Math.max.apply(0, lngs);
+    var kx = Math.cos(((minLa + maxLa) / 2) * Math.PI / 180);
+    var sx = Math.max((maxLo - minLo) * kx, 0.0005), sy = Math.max(maxLa - minLa, 0.0005);
+    var sc = Math.min((W - 2 * P) / sx, (H - 2 * P) / sy);
+    var ox = (W - (maxLo - minLo) * kx * sc) / 2, oy = (H - (maxLa - minLa) * sc) / 2;
+    var xy = pts.map(function (p) { return [ox + (p.lng - minLo) * kx * sc, H - oy - (p.lat - minLa) * sc]; });
+    var path = xy.length > 1 ? '<polyline points="' + xy.map(function (q) { return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ') + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 5" stroke-linecap="round" opacity=".7"/>' : '';
+    var dots = xy.map(function (q, i) {
+      return '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="11" fill="var(--w' + (i % 4) + ')" opacity=".9"/><text x="' + q[0].toFixed(1) + '" y="' + (q[1] + 4).toFixed(1) + '" text-anchor="middle" font-size="11" fill="var(--ink)" font-family="inherit">' + (i + 1) + '</text>';
+    }).join('');
+    return '<svg class="route" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="사진을 찍은 순서대로 이어 본 이동 경로">' + path + dots + '</svg>';
+  }
+
+  function showDay(k) {
+    view = 'day'; fallbackKey = k;
+    var p = k.split('-').map(Number), dt = new Date(p[0], p[1] - 1, p[2]);
+    cy = p[0]; cm = p[1] - 1;
+    var e = getDay(k) || { memo: '', place: '', photos: [] };
+    var pts = e.photos.filter(function (x) { return x.lat != null; });
+    $('#app').innerHTML =
+      '<div><button class="btn" data-act="back">← ' + (cm + 1) + '월로</button></div>' +
+      '<div class="dhead"><h1>' + p[0] + '년 ' + p[1] + '월 ' + p[2] + '일</h1><p>' + dt.toLocaleDateString('ko-KR', { weekday: 'long' }) + (k === todayKey ? ' · 오늘' : '') + '</p></div>' +
+      '<section class="sec"><h2>사진</h2>' + (e.photos.length
+        ? '<div class="photos">' + e.photos.map(function (x, i) { return '<div class="ph"><button class="phb" data-act="lb" data-i="' + i + '"><img src="' + x.thumb + '" alt="' + fmtTime(x.t) + '에 찍은 사진"><span>' + fmtTime(x.t) + '</span></button><label class="sr" for="pp-' + i + '">' + fmtTime(x.t) + ' 사진의 장소</label><input class="field pp" id="pp-' + i + '" data-pi="' + i + '" type="text" maxlength="40" placeholder="어디에 있었나요" value="' + esc(x.place || '') + '"></div>'; }).join('') + '</div><p style="margin:12px 0 0"><label class="btn" for="pick">사진 더 추가</label></p>'
+        : '<div class="empty"><span>이 날의 사진이 아직 없어요. 사진을 고르면 찍은 시각과 위치가 자동으로 담겨요.</span><label class="btn primary" for="pick">사진 고르기</label></div>') + '</section>' +
+      '<section class="sec"><h2>오늘의 장소</h2><label class="sr" for="place">하루 대표 장소</label><input class="field" id="place" type="text" maxlength="60" placeholder="예: 남산 둘레길" value="' + esc(e.place) + '"></section>' +
+      '<section class="sec"><h2>오늘의 한 줄</h2><label class="sr" for="memo">오늘의 한 줄</label><textarea class="field" id="memo" maxlength="2000" placeholder="그날 있었던 일을 짧게 적어 보세요.">' + esc(e.memo) + '</textarea><p class="status" id="status"></p></section>' +
+      '<section class="sec"><h2>이동 경로</h2>' + (pts.length
+        ? routeSvg(pts) + '<ul class="pts">' + pts.map(function (x, i) { return '<li><b>' + (i + 1) + '</b><span>' + fmtTime(x.t) + '</span><span>' + x.lat.toFixed(4) + ', ' + x.lng.toFixed(4) + '</span><a href="https://www.google.com/maps?q=' + x.lat.toFixed(6) + ',' + x.lng.toFixed(6) + '" target="_blank" rel="noopener">지도에서 보기</a></li>'; }).join('') + '</ul>'
+        : '<p class="hint" style="margin:0">위치가 담긴 사진이 아직 없어요. 카메라의 위치 태그를 켜고 찍은 사진에 좌표가 들어 있어요. 아이폰에서는 사진을 고를 때 옵션에서 위치 포함을 선택해 주세요.</p>') + '</section>';
+  }
+
+  function render() {
+    var h = location.hash.slice(1), m;
+    if ((m = h.match(/^day-(\d{4})-(\d{2})-(\d{2})$/))) showDay(m[1] + '-' + m[2] + '-' + m[3]);
+    else {
+      if ((m = h.match(/^month-(\d{4})-(\d{2})$/))) { cy = +m[1]; cm = +m[2] - 1; }
+      showMonth();
+    }
+    window.scrollTo(0, 0);
+  }
+  function go(hash) { if (location.hash.slice(1) === hash) render(); else location.hash = hash; }
+  function goMonth(y, m) { var d = new Date(y, m, 1); cy = d.getFullYear(); cm = d.getMonth(); go('month-' + cy + '-' + pad(cm + 1)); }
+
+  /* ---------- 사진 크게 보기 ---------- */
+  var lbKey = null, lbI = -1, lbArmed = false;
+  function openLb(i) {
+    lbKey = fallbackKey; lbI = i; lbArmed = false;
+    var ph = days[lbKey] && days[lbKey].photos[i]; if (!ph) return;
+    var lb = $('#lb');
+    lb.innerHTML = '<div class="lbbox"><img src="' + ph.thumb + '" alt="' + fmtTime(ph.t) + '에 찍은 사진"><p>' + fmtTime(ph.t) + (ph.lat != null ? ' · ' + ph.lat.toFixed(4) + ', ' + ph.lng.toFixed(4) : ' · 위치 정보 없음') + '</p><div class="lbrow"><button class="btn" id="del" data-act="del">사진 삭제</button><button class="btn primary" data-act="closelb" id="lbclose">닫기</button></div></div>';
+    lb.hidden = false; $('#lbclose').focus();
+  }
+  function closeLb() { $('#lb').hidden = true; }
+
+  document.addEventListener('click', async function (ev) {
+    var t = ev.target.closest('[data-act]');
+    if (!t) { if (ev.target === $('#lb')) closeLb(); return; }
+    var a = t.getAttribute('data-act');
+    if (a === 'open') go('day-' + t.getAttribute('data-key'));
+    else if (a === 'back') goMonth(cy, cm);
+    else if (a === 'prev') goMonth(cy, cm - 1);
+    else if (a === 'next') goMonth(cy, cm + 1);
+    else if (a === 'today') goMonth(now.getFullYear(), now.getMonth());
+    else if (a === 'lb') openLb(+t.getAttribute('data-i'));
+    else if (a === 'closelb') closeLb();
+    else if (a === 'del') {
+      if (!lbArmed) { lbArmed = true; t.textContent = '정말 삭제할까요?'; return; }
+      var d = days[lbKey]; d.photos.splice(lbI, 1); await putDay(d); closeLb(); toast('사진을 삭제했어요.'); showDay(lbKey);
+    }
+  });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !$('#lb').hidden) closeLb(); });
+
+  var timer;
+  document.addEventListener('input', function (ev) {
+    var id = ev.target.id;
+    if (view === 'day' && ev.target.classList.contains('pp')) {
+      var dd = days[fallbackKey], ph = dd && dd.photos[+ev.target.getAttribute('data-pi')];
+      if (!ph) return;
+      ph.place = ev.target.value;
+      clearTimeout(timer);
+      timer = setTimeout(function () { putDay(dd); }, 500);
+      return;
+    }
+    if ((id !== 'memo' && id !== 'place') || view !== 'day') return;
+    var d = ensureDay(fallbackKey); d[id] = ev.target.value;
+    var st = $('#status'); if (st) st.textContent = '저장 중…';
+    clearTimeout(timer);
+    timer = setTimeout(async function () {
+      var ok = await putDay(d), s2 = $('#status');
+      if (s2) s2.textContent = ok ? '저장됨' : '이 브라우저에서는 저장이 유지되지 않아요';
+    }, 500);
+  });
+  $('#pick').addEventListener('change', function (ev) {
+    var files = Array.prototype.slice.call(ev.target.files); ev.target.value = '';
+    if (files.length) addPhotos(files);
+  });
+  window.addEventListener('hashchange', render);
+
+  (async function init() {
+    try { db = await openDb(); (await loadAll()).forEach(function (d) { days[d.date] = d; }); }
+    catch (e) { persist = false; db = null; }
+    render();
+  })();
+})();
+</script>
+
+</body>
+</html>
